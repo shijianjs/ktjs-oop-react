@@ -408,6 +408,23 @@ bundle，而消费方打包时本来就会摇树，保留 public API 没有额�
 `init.d` 下的 Kotlin DSL 脚本做独立编译，`beforeSettings` 等隐式接收者解析不了，会报一堆
 `Unresolved reference`（命令行构建却正常）。
 
+npm 包下载（`kotlinNpmInstall`、`:docs:docusaurusStart` 之前那次安装）同理走本机用户配置
+`~/.npmrc` 的 `registry=https://registry.npmmirror.com/`，不写进仓库：仓库里没有 `.npmrc`，CI 只用官方源。
+**已锁定的条目不会因此变脏**——npm 只把 `resolved` 里指向 `registry.npmjs.org` 的主机换成当前 registry 去下载，
+写回锁文件仍是原值（npm 12 默认 `replace-registry-host=npmjs`），所以 `kotlin-js-store/package-lock.json`
+和 `kotlinStorePackageLock` 的校验都不受影响。**例外是锁里没有的包**：它们按当前 registry 解析，写进锁就是
+`registry.npmmirror.com`，CI 用官方源重装后立刻报 `Lock file was changed`。所以刷新锁一律先切回官方源：
+
+```powershell
+$env:npm_config_registry = 'https://registry.npmjs.org/'   # 只对本会话生效，覆盖 ~/.npmrc
+./gradlew --stop                                            # daemon 在启动时抓环境变量，必须重启
+./gradlew kotlinUpgradePackageLock --rerun-tasks
+```
+
+两条别再踩的细节：`replace-registry-host` 保持默认的 `npmjs`，改成 `always` 就真会把镜像地址写进锁文件；
+registry 是全局的，将来真要 `npm publish` 某个包时得显式 `--registry=https://registry.npmjs.org/`
+（npmmirror 是只读镜像，发布会被拒）。
+
 `kotlin-wrappers` 同步滞后，且有时只有 POM 没有 klib，而 Gradle 一旦在某个仓库找到元数据就不会回退到
 下一个仓库。`settings.gradle.kts` 因此用 `exclusiveContent` 把 `org.jetbrains.kotlin-wrappers` 和
 `kotlin-js-plain-objects` 固定到 Maven Central；新增 wrapper 依赖时如遇 `Could not find ... .klib`，把
@@ -442,6 +459,12 @@ bundle，而消费方打包时本来就会摇树，保留 public API 没有额�
 - 提升 `wrapper-revisions.properties` 的修订号也会改生成的 workspace 包版本，必须同时跑
   `./gradlew kotlinUpgradePackageLock` 并提交 `kotlin-js-store/package-lock.json`，否则 CI 在
   `:kotlinStorePackageLock` 报 `Lock file was changed`。
+- **新增 npm 依赖**同样要刷锁：`npm(...)` 声明、根 `package.json`、以及给站点加主题插件
+  （`@docusaurus/theme-mermaid` 这类）都会改变依赖图。只跑 `kotlinNpmInstall` 不算数——它不写回
+  `kotlin-js-store`，所以提交里没有锁文件更新，`./gradlew build` 就在 `:kotlinStorePackageLock` 失败
+  （2026-11 给站点加 mermaid 主题时漏了这一步，锁里少了 115 个包，`@docusaurus/theme-mermaid`、
+  `@mermaid-js/parser`、chevrotain、d3 类型等）。修法：在官方源下跑 `kotlinUpgradePackageLock`
+  （见「仓库与本地镜像」），确认 `git diff` 里只有新增条目（不应出现版本变化）再一起提交。
 
 ## 发布到 Maven Central
 
@@ -525,6 +548,16 @@ klibs.io 从 Maven Central 与 GitHub 自动抓取，无需提交元数据文件
 
 - `demo` 只消费公共 API，不发布、也不进入 Dokka。根 `build.gradle.kts` 的发布与 Dokka 配置按
   `ktjs-wrapper-template-` 前缀过滤子模块，新增非发布模块时沿用该约定。
+- 根 `package.json` 的 `browserslist` 是构建必需项，不是装饰：Babel 从生成的站点目录往上找到它才有编译
+  目标。没有它 `@babel/preset-env` 按 ES5 处理，`async/await` 被翻成 regenerator 状态机，
+  `@docusaurus/theme-mermaid` 里 `if (__DOCUSAURUS_MERMAID_LAYOUT_ELK_ENABLED__)` 这个守卫就不再是死代码，
+  webpack 会去解析那个**故意没装**的可选 peer `@mermaid-js/layout-elk`，`docusaurusBuild` 停在
+  `Can't resolve '@mermaid-js/layout-elk'`（派生项目加 mermaid 主题时踩过）。顺带产物也不再降级到 ES5。
+- mermaid 的节点 tooltip 还需要 `d3-transition`：`clientModules` 里那条 `../../node_modules/d3-transition`
+  是**副作用导入**，它给 d3 selection 挂上 `transition()`。mermaid 只是通过 `d3` 的 re-export 碰到它，而 `d3`
+  声明了 `sideEffects: false`，webpack 会把该模块摇掉，于是鼠标移到流程图节点上抛
+  `tooltipElem.transition is not a function`（派生项目踩过）。路径相对**站点目录**
+  （`<root>/build/js/docusaurus/<模块>`），这个布局由 Gradle 插件固定。
 - 端到端测试是 `demo` 的 JVM 目标里的 Playwright JUnit 5 套件（`demo/src/jvmTest/kotlin/demo/e2e`）：
   Playwright 驱动打包后的 `demo/build/dist/js/productionExecutable`，`DemoServer` 用 Hutool 的
   `SimpleServer` 在测试 JVM 内提供静态文件。运行 `./gradlew :demo:e2eTest`；它不在 `check` 里，CI 在
