@@ -39,15 +39,22 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ktjs-wrapper-template"
+rootProject.name = "ktjs-oop-react"
 
-// One Gradle project per published wrapper module. The sample module wraps a single npm package;
-// a derived project adds one include per package (or per group of packages that release together).
-include(":ktjs-wrapper-template-core")
+// The published library: the annotations, the runtime that patches prototypes and renders islands,
+// and the MobX binding. No npm package is wrapped — the upstream here is `oop-react`, a TypeScript
+// library this repository re-implements for Kotlin/JS — so the module carries a hand-written
+// semantic version (`semanticModules` in the root build script).
+include(":ktjs-oop-react")
+
+// The KSP processor consumers apply to their own module. It turns the annotations (`@OopReactState`,
+// `@OopReactRender`, `@OopReactIgnore`, `@OopReactAction`) into the metadata table the runtime reads,
+// because Kotlin/JS has no runtime annotation reflection.
+include(":ktjs-oop-react-ksp")
 
 // The demo page, published under /demo/ of the Pages site. Not a published module.
 include(":demo")
 
 // The documentation site: Kotlin configuration plus Markdown, assembled by the ktjs-docusaurus
 // Gradle plugin into a static site that `pagesSite` publishes at the Pages root.
-include(":docs")
+//include(":docs")

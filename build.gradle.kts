@@ -8,6 +8,10 @@ import org.jetbrains.kotlin.gradle.targets.js.npm.NpmExtension
 
 plugins {
     kotlin("multiplatform") version "2.4.21" apply false
+    kotlin("jvm") version "2.4.21" apply false
+    // Consumers that annotate state classes apply this plugin and depend on `ktjs-oop-react-ksp`;
+    // `demo` in this repository is the reference consumer.
+    id("com.google.devtools.ksp") version "2.3.14" apply false
     id("com.vanniktech.maven.publish") version "0.37.0" apply false
     id("dev.detekt") version "2.0.0-alpha.6" apply false
     id("org.jetbrains.dokka") version "2.3.0"
@@ -22,21 +26,30 @@ val versionSuffix =
     if (providers.gradleProperty("ktjs.release").map(String::toBoolean).getOrElse(false)) "" else "-SNAPSHOT"
 extra["versionSuffix"] = versionSuffix
 
-// Every publishable module shares the prefix, which is also how publishing, Dokka and the version
-// report find them. Keep it in sync with the module directories and settings.gradle.kts.
-val publishedPrefix = "ktjs-wrapper-template-"
+// Every published library carries this prefix, which is also how publishing, Dokka and the version
+// report find them. Keep it in sync with the module directories and settings.gradle.kts. The prefix
+// deliberately has no trailing dash: it is what the processor module is named after too.
+val publishedPrefix = "ktjs-oop-react"
 
-// Dokka aggregates every published module into one API reference. `demo` is not part of the
-// published API surface, so it is excluded by the prefix filter.
+// Libraries that wrap no npm package have no upstream version to follow, so they carry a
+// hand-written semantic version in their own build script instead of `{npm version}-kt.{revision}`.
+// This repository re-implements `oop-react` for Kotlin/JS rather than wrapping an npm package, so
+// both of its artifacts belong here.
+val semanticModules = setOf("ktjs-oop-react", "ktjs-oop-react-ksp")
+
+fun isPublished(module: String): Boolean = module.startsWith(publishedPrefix)
+
+// Dokka aggregates every published module into one API reference. `demo` and `docs` are not part of
+// the published API surface, so they are excluded by the prefix filter.
 dependencies {
     subprojects
-        .filter { it.name.startsWith(publishedPrefix) }
+        .filter { isPublished(it.name) && it.name != "${publishedPrefix}-ksp" }
         .forEach { dokka(project(it.path)) }
 }
 
 dokka {
     dokkaPublications.html {
-        moduleName.set("ktjs-wrapper-template")
+        moduleName.set("ktjs-oop-react")
         outputDirectory.set(layout.buildDirectory.dir("dokka/html"))
     }
 }
@@ -46,22 +59,25 @@ dokka {
 val publishedGroup = "io.github.shijianjs"
 
 // npm package versions live in package.json so that Dependabot can update them.
-// Subprojects read this map to declare npm(...) dependencies and derive their version.
+// Subprojects read this map to declare npm(...) dependencies.
 @Suppress("UNCHECKED_CAST")
 val npmVersions: Map<String, String> = run {
     val manifest = JsonSlurper().parse(file("package.json")) as Map<*, *>
-    (manifest["dependencies"] as Map<String, Any?>).mapValues { it.value.toString() }
+    @Suppress("UNCHECKED_CAST")
+    val dependencies = manifest["dependencies"] as Map<String, Any?>
+    dependencies.mapValues { it.value.toString() }
 }
 extra["npmVersions"] = npmVersions
 
-// Wrapper revisions are per module: a release only creates new versions for the modules whose
-// revision was bumped, so unchanged modules are not re-uploaded (file/size quota and version
-// noise). Release Count is per Central deployment, not per module: publishing every pending
-// module in one Gradle invocation makes the plugin upload a single deployment.
+// Every module here carries a semantic version, so the revision table only has to exist for the
+// root script to read; a future npm-backed module would add its entry here.
 @Suppress("UNCHECKED_CAST")
 val wrapperRevisions: Map<String, Int> = run {
     val properties = java.util.Properties()
-    file("wrapper-revisions.properties").inputStream().use { properties.load(it) }
+    val file = file("wrapper-revisions.properties")
+    if (file.exists()) {
+        file.inputStream().use { properties.load(it) }
+    }
     properties.stringPropertyNames().associate { name ->
         name to properties.getProperty(name).trim().toInt()
     }
@@ -87,8 +103,9 @@ subprojects {
         source.setFrom(files("src"))
     }
 
-    // Only wrapper modules are published and documented; `demo` is the GitHub Pages site.
-    if (name.startsWith(publishedPrefix)) {
+    // Only published modules are documented; `demo` is the GitHub Pages site and the KSP processor
+    // is a build-time tool with no API of its own.
+    if (isPublished(name) && name != "${publishedPrefix}-ksp") {
         apply(plugin = "org.jetbrains.dokka")
     }
 }
@@ -100,10 +117,12 @@ subprojects {
 // GitHub repository) and requires the kotlin-tooling-metadata.json produced by the Kotlin
 // Multiplatform plugin. Keep both intact when changing this block.
 subprojects {
-    if (!name.startsWith(publishedPrefix)) return@subprojects
+    if (!isPublished(name)) return@subprojects
 
-    check(wrapperRevisions.containsKey(name)) {
-        "Missing '$name' in wrapper-revisions.properties"
+    if (name !in semanticModules) {
+        check(wrapperRevisions.containsKey(name)) {
+            "Missing '$name' in wrapper-revisions.properties"
+        }
     }
 
     val module = this
@@ -115,12 +134,14 @@ subprojects {
     // The subproject's Kotlin Multiplatform plugin is applied after this root script runs.
     // Choosing the javadoc jar earlier would hit the "no compatible plugin" branch and the
     // plugin's afterEvaluate default (Dokka HTML) would win.
-    plugins.withId("org.jetbrains.kotlin.multiplatform") {
-        extensions.configure<MavenPublishBaseExtension> {
-            // Maven Central requires a javadoc jar, but Dokka's HTML output duplicates its static
-            // assets into every module's jar (~1.1 MB each). The API reference is deployed to the
-            // Pages site, so publish the required empty jar instead of the HTML copy.
-            configureBasedOnAppliedPlugins(javadocJar = JavadocJar.Empty())
+    listOf("org.jetbrains.kotlin.multiplatform", "org.jetbrains.kotlin.jvm").forEach { pluginId ->
+        plugins.withId(pluginId) {
+            extensions.configure<MavenPublishBaseExtension> {
+                // Maven Central requires a javadoc jar, but Dokka's HTML output duplicates its static
+                // assets into every module's jar (~1.1 MB each). The API reference is deployed to the
+                // Pages site, so publish the required empty jar instead of the HTML copy.
+                configureBasedOnAppliedPlugins(javadocJar = JavadocJar.Empty())
+            }
         }
     }
 
@@ -136,16 +157,16 @@ subprojects {
             name.set(module.name)
             description.set(
                 module.provider {
-                    module.description ?: "Kotlin/JS wrapper for ktjs-wrapper-template."
+                    module.description ?: "Object-oriented UI for Kotlin/JS React."
                 }
             )
-            url.set("https://github.com/shijianjs/ktjs-wrapper-template")
+            url.set("https://github.com/shijianjs/ktjs-oop-react")
             inceptionYear.set("2026")
 
             licenses {
                 license {
                     name.set("MIT License")
-                    url.set("https://github.com/shijianjs/ktjs-wrapper-template/blob/master/LICENSE")
+                    url.set("https://github.com/shijianjs/ktjs-oop-react/blob/master/LICENSE")
                 }
             }
 
@@ -158,9 +179,9 @@ subprojects {
             }
 
             scm {
-                url.set("https://github.com/shijianjs/ktjs-wrapper-template")
-                connection.set("scm:git:git://github.com/shijianjs/ktjs-wrapper-template.git")
-                developerConnection.set("scm:git:ssh://git@github.com/shijianjs/ktjs-wrapper-template.git")
+                url.set("https://github.com/shijianjs/ktjs-oop-react")
+                connection.set("scm:git:git://github.com/shijianjs/ktjs-oop-react.git")
+                developerConnection.set("scm:git:ssh://git@github.com/shijianjs/ktjs-oop-react.git")
             }
         }
     }
@@ -183,7 +204,7 @@ subprojects {
 // would upload before running publishToMavenCentral, so version derivation stays in the module
 // scripts rather than being duplicated in shell.
 tasks.register("printPublishedVersions") {
-    val publishedModules = subprojects.filter { it.name.startsWith(publishedPrefix) }
+    val publishedModules = subprojects.filter { isPublished(it.name) }
     doLast {
         publishedModules
             .associate { it.name to it.version.toString() }
@@ -196,9 +217,8 @@ tasks.register("printPublishedVersions") {
 // reference under /api/. The docs site's `baseUrl` and the two links it builds from it (in Config.kt)
 // have to mirror this layout.
 tasks.register<Sync>("pagesSite") {
-    dependsOn(":demo:jsBrowserDistribution", ":docs:docusaurusBuild", "dokkaGeneratePublicationHtml")
+    dependsOn(":demo:jsBrowserDistribution", "dokkaGeneratePublicationHtml")
     into(layout.buildDirectory.dir("pages"))
-    from(layout.buildDirectory.dir("js/docusaurus/docs/build"))
     from(project(":demo").layout.buildDirectory.dir("dist/js/productionExecutable")) {
         into("demo")
     }

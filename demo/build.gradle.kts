@@ -1,6 +1,14 @@
+import org.jetbrains.kotlin.gradle.ExperimentalJsTestDsl
+
 plugins {
     kotlin("multiplatform")
+    // The demo is the reference consumer: it applies the processor to its own sources, which is
+    // where the annotated state classes live.
+    id("com.google.devtools.ksp")
 }
+
+@Suppress("UNCHECKED_CAST")
+val npmVersions = rootProject.extra["npmVersions"] as Map<String, String>
 
 // The brand image lives with the site's static files and is copied in here, so the demo and the
 // documentation cannot drift apart. `srcDir(task)` only contributes the directory, not the
@@ -19,7 +27,12 @@ kotlin {
 
         // The demo is a standalone page, so the JS target needs an executable webpack bundle.
         binaries.executable()
-        browser()
+        browser {
+            @OptIn(ExperimentalJsTestDsl::class)
+            test {
+                chromium()
+            }
+        }
     }
 
     // The JVM target carries only the Playwright end-to-end suite in `src/jvmTest`; the demo itself
@@ -31,9 +44,13 @@ kotlin {
             resources.srcDir(brandAssets)
         }
         jsMain.dependencies {
-            implementation("org.jetbrains.kotlin-wrappers:kotlin-browser:2026.11.1")
-            // The published modules the demo demonstrates, one line each.
-            implementation(project(":ktjs-wrapper-template-core"))
+            implementation(project(":ktjs-oop-react"))
+
+            // The UI kit the demo is written against: the official wrapper for MUI. Emotion is its
+            // styling engine — MUI declares it as a peer, so the npm versions come from package.json.
+            implementation("org.jetbrains.kotlin-wrappers:kotlin-mui-material:2026.11.1-9.5.0")
+            implementation(npm("@emotion/react", npmVersions.getValue("@emotion/react")))
+            implementation(npm("@emotion/styled", npmVersions.getValue("@emotion/styled")))
         }
 
         jvmTest.dependencies {
@@ -45,6 +62,12 @@ kotlin {
             runtimeOnly("org.junit.platform:junit-platform-launcher:6.1.3")
         }
     }
+}
+
+dependencies {
+    // One line, and every `@OopReactState` / `@OopReactRender` class in this module gets patched at
+    // startup. See `Main.kt` for the `initializeOopReact()` call it generates.
+    add("kspJs", project(":ktjs-oop-react-ksp"))
 }
 
 // `srcDir(task)` contributes the directory but not the task dependency; resource processing is what
@@ -70,13 +93,14 @@ tasks.register<Test>("e2eTest") {
     description = "Runs the Kotlin/JVM Playwright suite against the bundled demo page."
     useJUnitPlatform()
     dependsOn("jsBrowserDistribution")
-    // The Chromium is installed for the Kotlin/JS browser tests of the wrapper module, and this suite
-    // reuses it. A derived project points this at its own first published module.
-    dependsOn(":ktjs-wrapper-template-core:kotlinInstallPlaywrightBrowsers")
+    dependsOn(":ktjs-oop-react:kotlinInstallPlaywrightBrowsers")
 
     testClassesDirs = jvmE2eCompilation.output.classesDirs
     classpath = files(jvmE2eCompilation.output.allOutputs, jvmE2eCompilation.runtimeDependencyFiles)
-    systemProperty("demo.dist", layout.buildDirectory.dir("dist/js/productionExecutable").get().asFile.absolutePath)
+    systemProperty(
+        "demo.dist",
+        layout.buildDirectory.dir("dist/js/productionExecutable").get().asFile.absolutePath,
+    )
     systemProperty("e2e.output", layout.buildDirectory.dir("e2e-results").get().asFile.absolutePath)
     systemProperty("junit.jupiter.execution.timeout.default", "30 s")
 

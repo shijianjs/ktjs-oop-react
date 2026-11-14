@@ -1,0 +1,226 @@
+package io.github.shijianjs.ktjs.oopreact.reactivity
+
+import io.github.shijianjs.ktjs.oopreact.internal.componentName
+import io.github.shijianjs.ktjs.oopreact.render.oopReactIslandMethod
+import io.github.shijianjs.ktjs.oopreact.internal.constructorOf
+import io.github.shijianjs.ktjs.oopreact.internal.isFunction
+import io.github.shijianjs.ktjs.oopreact.internal.parentPrototypeOf
+import io.github.shijianjs.ktjs.oopreact.internal.prototypeOf
+import io.github.shijianjs.ktjs.oopreact.internal.readProperty
+import io.github.shijianjs.ktjs.oopreact.internal.readSymbolProperty
+import io.github.shijianjs.ktjs.oopreact.internal.writeProperty
+import io.github.shijianjs.ktjs.oopreact.internal.writeSymbolProperty
+import js.reflect.JsClass
+import io.github.shijianjs.ktjs.oopreact.internal.castFrom
+import js.symbol.Symbol
+import kotlin.js.JsAny
+
+/**
+ * What a `@OopReactRender` method means at runtime: the JavaScript property name it was compiled to,
+ * the owner name shown in an error report, and how to build its React key.
+ *
+ * `jsName` is the name given in `@JsName`. Kotlin/JS renames every class member to
+ * `name_<hash>_k$` at compile time, so the name a caller writes in Kotlin is not the name the
+ * property has at runtime; `@JsName` is the only way to pin it, and the processor rejects a
+ * `@OopReactRender` method that does not carry one.
+ */
+class OopReactRenderMeta internal constructor(
+    val jsName: String,
+    /** Owner name for `<name>.<method>`; `null` means "use the class name". */
+    val name: String?,
+    /** Property read for the React key, or `null` for the default (`<instanceId>.<method>`). */
+    val key: String?,
+)
+
+/**
+ * Everything the runtime needs to know about one annotated class, produced by `ktjs-oop-react-ksp`
+ * and handed over in [oopReactRegister].
+ *
+ * One instance per *declaring* class: a subclass that inherits a render method inherits its patch
+ * through the prototype chain, so it only needs an entry of its own when it adds members.
+ *
+ * This type is public because generated code lives in the consumer's module. It is not part of the
+ * hand-written API — build one with [oopReactMeta].
+ */
+class OopReactClassMeta internal constructor(
+    /** The constructor, i.e. the JS class object, whose prototype gets patched. */
+    val constructor: JsAny,
+    /**
+     * The class name as written in source, recorded at build time.
+     *
+     * A production bundle minifies `constructor.name` into something like `iN`, which is useless in a
+     * fallback or an error report; the name KSP saw is not minified.
+     */
+    val className: String,
+    /** Whether the class carries `@OopReactState`. */
+    internal var state: Boolean,
+    internal var renders: List<OopReactRenderMeta>,
+    internal var ignores: Set<String>,
+    internal var actions: Set<String>,
+) {
+    /** Set once the prototype has been patched, so registering twice cannot wrap a wrapper. */
+    internal var patched: Boolean = false
+}
+
+/**
+ * Builder used by generated code:
+ *
+ * ```kotlin
+ * internal val cartMeta = oopReactMeta(Cart::class.js) {
+ *     state = true
+ *     render("view")
+ *     render("row", key = "id")
+ *     ignore("api")
+ *     action("reset")
+ * }
+ * ```
+ *
+ * Every name is a **JavaScript** name: the one `@JsName` pins.
+ */
+class OopReactMetaBuilder internal constructor() {
+    internal var state: Boolean = false
+    internal val renders: MutableList<OopReactRenderMeta> = mutableListOf()
+    internal val ignores: MutableSet<String> = mutableSetOf()
+    internal val actions: MutableSet<String> = mutableSetOf()
+
+    /** Marks the class as `@OopReactState`: its instances are made observable before first render. */
+    fun state() {
+        state = true
+    }
+
+    fun render(jsName: String, name: String? = null, key: String? = null) {
+        renders.add(OopReactRenderMeta(jsName, name, key))
+    }
+
+    fun ignore(jsName: String) {
+        ignores.add(jsName)
+    }
+
+    fun action(jsName: String) {
+        actions.add(jsName)
+    }
+}
+
+fun oopReactMeta(
+    klass: JsClass<*>,
+    name: String = "",
+    block: OopReactMetaBuilder.() -> Unit,
+): OopReactClassMeta =
+    OopReactClassMeta(
+        constructor = castFrom(klass),
+        className = name,
+        state = false,
+        renders = emptyList(),
+        ignores = emptySet(),
+        actions = emptySet(),
+    ).also { meta ->
+        val builder = OopReactMetaBuilder()
+        builder.block()
+        meta.state = builder.state
+        meta.renders = builder.renders.toList()
+        meta.ignores = builder.ignores.toSet()
+        meta.actions = builder.actions.toSet()
+    }
+
+/** The meta is parked on the constructor under a symbol, so it is invisible to enumeration. */
+private val META_KEY: JsAny = Symbol("oop-react.meta")
+
+/**
+ * The single entry point generated code calls, once, at application start:
+ *
+ * ```kotlin
+ * fun main() {
+ *     initializeOopReact()   // generated by ktjs-oop-react-ksp
+ *     …
+ * }
+ * ```
+ *
+ * Registering does three things per class: stores the meta on the constructor, patches the render
+ * methods on the prototype so a call returns an island instead of a bare element, and remembers the
+ * class as state so instances are made observable on first use.
+ *
+ * Patching cannot happen at class-definition time the way a TypeScript decorator does: Kotlin has no
+ * class definition hook, and Kotlin/JS has no runtime annotation reflection. This call is the one
+ * hand-written statement that replaces both.
+ *
+ * Safe to call twice: a class whose prototype is already patched is skipped.
+ */
+fun oopReactRegister(vararg metas: OopReactClassMeta) {
+    for (meta in metas) {
+        val existing: OopReactClassMeta? = castFrom(readSymbolProperty(meta.constructor, META_KEY))
+        if (existing != null) continue
+        writeSymbolProperty(meta.constructor, META_KEY, meta)
+        patchRenders(meta)
+    }
+}
+
+private fun patchRenders(meta: OopReactClassMeta) {
+    if (meta.patched) return
+    meta.patched = true
+
+    val prototype = prototypeOf(meta.constructor) ?: return
+    for (render in meta.renders) {
+        val original = readProperty(prototype, render.jsName)
+        check(isFunction(original)) {
+            "@OopReactRender is on '${render.jsName}', but that name is not a method of the class " +
+                "it was registered for. Add @JsName(\"${render.jsName}\") to the method."
+        }
+        writeProperty(prototype, render.jsName, oopReactIslandMethod(original!!, render))
+    }
+}
+
+/**
+ * The metas that apply to an instance, most derived first.
+ *
+ * Walking the chain, not just reading `constructor`, is what makes inheritance work: a subclass with
+ * no annotations of its own still resolves the parent's, and one that adds members contributes both.
+ */
+internal fun metasFor(instance: JsAny): List<OopReactClassMeta> {
+    val result = mutableListOf<OopReactClassMeta>()
+    var prototype = prototypeOf(constructorOf(instance) ?: return result)
+
+    while (prototype != null) {
+        val constructor = readProperty(prototype, "constructor")
+        val meta: OopReactClassMeta? = castFrom(readSymbolProperty(constructor, META_KEY))
+        if (meta != null) result.add(meta)
+        prototype = parentPrototypeOf(prototype)
+    }
+
+    return result
+}
+
+/** `Name.method` for an island: the owner name comes from the annotation, the component, or the class. */
+internal fun islandName(instance: JsAny, meta: OopReactRenderMeta): String {
+    val owner =
+        meta.name
+            ?: componentName(instance)?.let { it }
+            ?: metasFor(instance).firstOrNull { it.className.isNotEmpty() }?.className
+            ?: run {
+                val constructor = constructorOf(instance)
+                (readProperty(constructor, "name") as? String) ?: "Object"
+            }
+    return "$owner.${meta.jsName}"
+}
+
+/** Set when the class carries `@OopReactState` anywhere in its chain. */
+internal fun isStateInstance(instance: JsAny): Boolean =
+    metasFor(instance).any { it.state }
+
+/** Every `@OopReactIgnore` name that applies to the instance, inherited ones included. */
+internal fun ignoredNames(instance: JsAny): Set<String> =
+    metasFor(instance).flatMapTo(mutableSetOf()) { it.ignores }
+
+/** Every `@OopReactAction` name that applies to the instance, inherited ones included. */
+internal fun actionNames(instance: JsAny): Set<String> =
+    metasFor(instance).flatMapTo(mutableSetOf()) { it.actions }
+
+/** Every render method that applies to the instance, keyed by JS name; the most derived wins. */
+internal fun renderMetas(instance: JsAny): Map<String, OopReactRenderMeta> {
+    val result = mutableMapOf<String, OopReactRenderMeta>()
+    for (meta in metasFor(instance)) {
+        for (render in meta.renders) {
+            if (!result.containsKey(render.jsName)) result[render.jsName] = render
+        }
+    }
+    return result
+}

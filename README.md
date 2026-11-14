@@ -1,94 +1,71 @@
-# ktjs-wrapper-template
+# ktjs-oop-react
 
-<p align="center"><img src="docs/src/jsMain/resources/static/img/ktjs-wrapper-template-logo.png" width="120" alt="ktjs-wrapper-template"></p>
+**简体中文** | English (TODO)
 
-A Kotlin/JS wrapper project that already runs: one Gradle module wrapping
-[`@vaadin/button`](https://www.npmjs.com/package/@vaadin/button), a demo page, a documentation site
-built with [ktjs-docusaurus](https://github.com/shijianjs/ktjs-docusaurus), and the tests and release
-pipeline around them.
+把 [`oop-react`](https://github.com/shijianjs/oop-react) 的模型移植到 Kotlin/JS：**状态和行为待在一个普通类里**，
+只有标了 `@OopReactRender` 的方法参与重渲染。React 用官方 kotlin-wrappers 绑定，可观察性就是 MobX 本身。
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+```kotlin
+@OopReactState
+class Cart {
+    val items: MutableList<Item> = OopReactList()
 
-**[Documentation](https://shijianjs.github.io/ktjs-wrapper-template/)** ·
-**[Live demo](https://shijianjs.github.io/ktjs-wrapper-template/demo/)** ·
-**[API reference](https://shijianjs.github.io/ktjs-wrapper-template/api/)**
+    fun add(item: Item) {
+        items.add(item)
+    }
 
-Copy the repository and rename it — that is the setup. Nothing here is a placeholder waiting for a
-script to fill it in, so `./gradlew build` works on the copy as it is. The rename checklist lives in
-the documentation: [Deriving a project](https://shijianjs.github.io/ktjs-wrapper-template/guide/deriving-a-project).
+    @OopReactRender
+    @JsName("view")
+    fun view(): ReactNode = jsx {
+        ul {
+            for (item in items) {
+                li { +item.title }
+            }
+        }
+    }
+}
 
-## Modules
+val cart = Cart()
 
-| Module | npm package | Wrapper version |
-| --- | --- | --- |
-| [ktjs-wrapper-template-core](ktjs-wrapper-template-core/README.md) | `@vaadin/button` | `25.3.5-kt.1` |
-
-The repository keeps one Gradle module per npm package, or per group of packages that share an
-upstream version and release cadence. Tree shaking removes unused declarations from the final
-application bundle, so grouping related packages into one module is cheaper than one module per
-package.
-
-## Versioning
-
-Each module is versioned as `{upstream npm version}-kt.{revision}`. The upstream npm versions are
-declared once in the root [`package.json`](package.json); the revision is read per module from
-[`wrapper-revisions.properties`](wrapper-revisions.properties). Gradle derives the base version and
-the `npm(...)` dependency from these two files:
-
-- Only `-kt.N` versions are published; a version without the suffix never exists.
-- A working tree always adds `-SNAPSHOT`: the derived number is the *next* release, which Central does
-  not have yet, so development builds never impersonate it. Publishing passes `-Pktjs.release=true`,
-  which drops the suffix.
-- Upstream upgrade: change the version in `package.json`; the base version follows automatically
-  while the revision stays, even when the wrapper code itself did not change.
-- Wrapper-only fix: the revision increments (`kt.2`, `kt.3`, ...) while the base version stays.
-- Revisions are tracked per module and only ever increase; they never reset to `kt.1`. A release
-  bumps and publishes only the modules that changed.
-
-## Requirements
-
-- JDK 21 or newer (the build uses Gradle 9.4.1).
-- Node and npm are downloaded automatically by the Kotlin Gradle plugin; `kotlin.js.yarn=false` in
-  `gradle.properties` keeps npm as the package manager.
-- Chromium is downloaded by Playwright the first time browser tests run.
-
-## Build and test
-
-```bash
-./gradlew build                    # compile, Detekt, browser tests
-./gradlew :ktjs-wrapper-template-core:jsBrowserTest
-
-# End-to-end checks for the demo page (Playwright, against the bundled output)
-./gradlew :demo:e2eTest
-
-# Documentation site: Kotlin configuration, Markdown pages, built by ktjs-docusaurus
-./gradlew :docs:docusaurusBuild
-
-# GitHub Pages site (documentation at the root, demo under /demo/, Dokka output under /api/)
-./gradlew pagesSite
+// 唯一和 React 有关的东西
+fun main() {
+    initializeOopReact()   // KSP 生成，调一次
+    createRoot(container).render(cart.view())
+}
 ```
 
-After adding or upgrading an npm dependency, refresh the shared lock file:
+- **没有 `useState` / `useCallback` / 依赖数组**：字段就是状态，方法就是回调。
+- **重渲染有边界**：一个类可以有几个 `@OopReactRender` 方法，每个都是独立的岛，只订阅自己读到的字段，各自被一个
+  错误边界包住。
+- **逻辑不搬家**：对象相互持有，孙子可以直接写祖父的字段，不经过 context、回调 prop 或 ref。
+- **状态类本身就是普通对象**：可以在测试里 `new`，可以被别的类注入，可以脱离 React 单独使用。
+
+## 两个必须知道的约定
+
+1. **成员要写 `@JsName`。** Kotlin/JS 把类成员编译成 `name_<hash>_k$`，运行时只能靠 `@JsName` 找到它们；
+   注解处理器对缺少它的成员直接报错。
+2. **启动时调一次 `initializeOopReact()`。** Kotlin/JS 既没有类定义钩子也没有运行时注解反射，这一行取代了
+   TypeScript 装饰器的时机。
+
+## 仓库结构
+
+| 目录 | 内容 |
+| --- | --- |
+| `ktjs-oop-react/` | 发布的库：注解、运行时、MobX 绑定 |
+| `ktjs-oop-react-ksp/` | KSP 处理器：注解 → 元数据表 |
+| `demo/` | 演示页：一张对象图 + 五条哈希路由，UI 用 MUI |
+| `docs/` | 文档站（未改写，见 `TODO.md`） |
+
+## 本地开发
 
 ```bash
-./gradlew kotlinUpgradePackageLock
+./gradlew :ktjs-oop-react:jsBrowserTest   # 库的浏览器测试
+./gradlew :demo:e2eTest                   # demo 的端到端套件
+./gradlew pagesSite                       # 组装 Pages 产物到 build/pages
 ```
 
-The `docs` module is a Kotlin/JS project too. All three ktjs-docusaurus versions live in
-`gradle.properties` — the wrapper klib, the Gradle plugin and the kit whose home sections the landing
-page uses — because each of those modules carries its own revision. A SNAPSHOT there is resolved from
-`mavenLocal`, so building the site against an unreleased wrapper means publishing that wrapper
-locally first. The kit's browser bundle is not a Maven artifact: it ships as a resource of the kit's
-klib, and `extractKitBundle` copies it to the site's `static/ktjs-client/`.
+约定、机制与坑见 [`AGENTS.md`](AGENTS.md)，进度见 [`TODO.md`](TODO.md)。
 
-## Publishing
+## 许可
 
-Publishing is configured once in the root [`build.gradle.kts`](build.gradle.kts) for all modules.
-Releases run through `.github/workflows/release.yml`: it signs the artifacts, packages one archive per
-Maven coordinate and registers them with the shared Maven Central hub, which merges the pending
-registrations into a single deployment. A derived project that does not want to publish can drop that
-workflow and the publishing block; nothing else depends on it.
-
-## License
-
-Released under the [MIT License](LICENSE).
+MIT

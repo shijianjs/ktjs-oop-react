@@ -1,55 +1,69 @@
-:root {
-    color-scheme: light dark;
-    --page-fg: #1f2933;
-    --page-bg: #ffffff;
-    --page-muted: #52606d;
-}
+/*
+ * The demo's own styles. Deliberately tiny: MUI carries the look, and the few things it needs a
+ * class for (a flex spacer, fixed square board cells, dimmed secondary text) are one-line rules.
+ * No theme tokens, no resets, no "design system" — the library under test is not a component kit.
+ */
 
-@media (prefers-color-scheme: dark) {
-    :root {
-        --page-fg: #e4e7eb;
-        --page-bg: #111827;
-        --page-muted: #9aa5b1;
-    }
-}
-
-*,
-*::before,
-*::after {
-    box-sizing: border-box;
-}
-
+html,
 body {
     margin: 0;
-    color: var(--page-fg);
-    background: var(--page-bg);
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    line-height: 1.6;
+    padding: 0;
 }
 
-.page {
-    max-width: 72rem;
-    margin: 0 auto;
-    padding: 2rem 1.5rem 4rem;
+.app-spacer {
+    flex: 1;
 }
 
-.header {
+.app-page {
+    padding: 24px 0 64px;
+}
+
+.app-stack {
+    gap: 16px;
+}
+
+.app-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.app-row {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 
-.logo {
-    width: 56px;
-    height: 56px;
+.app-muted {
+    opacity: 0.72;
 }
 
-.hint,
-.status {
-    color: var(--page-muted);
+.app-caption {
+    opacity: 0.58;
+    font-variant-numeric: tabular-nums;
 }
 
-/* The demo page is a plain page, so the element it wraps can be spaced with a tag selector here. */
-.page vaadin-button {
-    margin-right: 0.5rem;
+.app-board {
+    display: flex;
+    flex-wrap: wrap;
+    width: 198px;
+}
+
+.app-square {
+    width: 66px;
+    height: 66px;
+    min-width: 66px;
+    font-size: 24px;
+    font-weight: 700;
+    border-radius: 6px;
+}
+
+.app-dialog-form {
+    padding-top: 8px;
+}
+
+.app-error {
+    color: #b3261e;
 }
