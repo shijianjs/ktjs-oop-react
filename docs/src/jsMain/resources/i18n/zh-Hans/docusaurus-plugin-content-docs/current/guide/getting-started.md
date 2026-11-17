@@ -26,8 +26,8 @@ sidebar_position: 1
 ## 开发
 
 ```bash
-./gradlew :docs:docusaurusStart    # 文档站的开发服务器
-./gradlew :demo:jsBrowserRun       # demo 页面的开发服务器
+./gradlew :docs:docusaurusStart          # 文档站的开发服务器
+./gradlew :demo:jsBrowserDevelopmentRun  # demo 页面的开发服务器
 ```
 
 Docusaurus 监听站点目录，改 Markdown 即时刷新；改 Kotlin 要先 `./gradlew :docs:docusaurusSite`，因为
