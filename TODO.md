@@ -6,9 +6,9 @@ TypeScript 的装饰器换成「注解 + KSP 生成的元数据表 + 运行时 p
 kotlin-wrappers 绑定，响应式就是 MobX。
 
 - 总计：41
-- 已完成：26
+- 已完成：27
 - 明确不做：0
-- 待完成：15
+- 待完成：14
 
 详细清单与每项的验证依据：[docs/development/parity.md](docs/development/parity.md)
 
@@ -17,7 +17,8 @@ kotlin-wrappers 绑定，响应式就是 MobX。
 - [ ] 修两个已 `@Ignore` 的行为缺口：继承字段/父岛重渲染后子岛不更新（见 parity.md「已知缺口」）
 - [ ] 给 `oopReactConfigure`、`oopReactComponent`、`oopReactBridge`、`OopReactCleanup`、`OopReactSelection` 补测试
 - [ ] `ktjs-oop-react-ksp` 的单元测试（生成结果 + 缺 `@JsName` 的报错）
-- [ ] 文档站：`docs/` 还是模板内容，`settings.gradle.kts` 里暂未 include，需要整体改写
+- [x] 文档站：四页（intro / getting-started / the-model / testing-and-troubleshooting）+ 中文版，kit 首页，
+      `TocToggle` 接线，`settings.gradle.kts` 已 include
 - [ ] 根 README 与 `ktjs-oop-react/README.md` 换成这个项目的说明
 - [ ] `.github/workflows` 里残留模板的模块名与站点路径，需要按新结构核对
 - [ ] `OopReactResource` / `OopReactAsyncView` 的两个 `@Ignore` 用例（测试写法本身可疑）

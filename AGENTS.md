@@ -25,12 +25,30 @@ MobX 本身，不做抽象层。**它不是 npm 包的 wrapper**，所以版本�
 - `ktjs-oop-react-ksp`：KSP 处理器，把注解变成运行时用的元数据表。消费者在自己的模块里应用 KSP。**不发布
   Dokka**，它是构建期工具。
 - `demo`：演示页，发布在 Pages 的 `/demo/`。**它是参考消费者**：应用 KSP、用 MUI、用一张对象图渲染整页。
-- `docs`：文档站（模板遗留，尚未改写，`settings.gradle.kts` 里暂时不 include）。logo 仍放在
-  `docs/src/jsMain/resources/static/img/`，demo 通过 `brandAssets` 任务拷过去。
+- `docs`：文档站，`settings.gradle.kts` 里已 include。站点就是四页：`intro`、`guide/getting-started`、
+  `guide/the-model`、`guide/testing-and-troubleshooting`，每页都有 `i18n/zh-Hans/` 下的中文版。首页用
+  `ktjs-docusaurus-kit` 的 `ktjs-hero` / `ktjs-features` / `ktjs-next-steps` 五件套，右侧 TOC 折叠按钮由
+  `ClientModule.kt` 的 `TocToggle` 装上（`Config.kt` 的 `clientModules` 与 `onRouteDidUpdate` 两处缺一不显
+  示）。logo 只有一份，放在 `docs/src/jsMain/resources/static/img/`，demo 通过 `brandAssets` 任务拷过去。
 
 Kotlin 包名统一以账号的 GitHub Pages 域名倒写为前缀：`io.github.shijianjs.ktjs.oopreact`。库里按能力分
 包：`render/`（注解、岛、observer、回调、observer 原语）、`reactivity/`（注解、可观察性、元数据、列表）、
 `component/`、`error/`、`config/`、`async/`、`lifecycle/`、`selection/`、`internal/`（JS 互操作）。
+
+## 文档站
+
+- 构建：`./gradlew :docs:docusaurusBuild`。产物在 `build/js/docusaurus/docs/build/`，部署前缀是
+  `baseUrl = /ktjs-oop-react/`，所以本地直接起静态服务器看首页会 404 —— 要么把产物放到同名子目录，要么用
+  `:docs:docusaurusStart`。
+- 改文案只动 `resources/docs/**` 与 `resources/i18n/zh-Hans/**`；两边的页面集合必须一一对应，侧边栏 id 在
+  `Config.kt` 的 `sidebars()` 里。
+- 站内链接写成 `guide/the-model.md` 这种**带 `.md`** 的形式（Docusaurus 按源文件解析）；同目录链接写
+  `the-model.md`，不要带目录前缀，它会相对当前页解析。
+- `onBrokenLinks = throw`，所以链接写错会让构建失败 —— 这是想要的行为，别改成 warn。
+- 首页的 `<ktjs-…>` 元素只是标记，升级发生在浏览器里：`ClientModule.kt` 在 `onRouteDidUpdate` 里加载
+  `static/ktjs-client/index.mjs`（kit 的浏览器 bundle，由 `extractKitBundle` 拷进资源）。
+- mermaid 的 `d3-transition` 副作用导入、`browserslist` 与 `@mermaid-js/layout-elk` 的关系见 `Config.kt` 注释，
+  不要删。
 
 ## 注解机制（改库之前先读）
 

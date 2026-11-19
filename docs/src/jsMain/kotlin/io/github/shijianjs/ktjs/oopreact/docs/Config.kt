@@ -1,4 +1,4 @@
-package io.github.shijianjs.ktjs.wrappertemplate.docs
+package io.github.shijianjs.ktjs.oopreact.docs
 
 import io.github.shijianjs.ktjs.docusaurus.config.Config
 import io.github.shijianjs.ktjs.docusaurus.config.Directions
@@ -40,7 +40,7 @@ import kotlin.js.JsExport
 import kotlin.js.JsName
 import kotlin.js.unsafeCast
 
-private const val REPOSITORY = "https://github.com/shijianjs/ktjs-wrapper-template"
+private const val REPOSITORY = "https://github.com/shijianjs/ktjs-oop-react"
 
 private const val SITE_URL = "https://shijianjs.github.io"
 
@@ -48,7 +48,7 @@ private const val SITE_URL = "https://shijianjs.github.io"
  * Where the site is served from: the GitHub Pages root. `pagesSite` puts the documentation here, the
  * demo under `/demo/` and the API reference under `/api/`.
  */
-private const val SITE_BASE_URL = "/ktjs-wrapper-template/"
+private const val SITE_BASE_URL = "/ktjs-oop-react/"
 
 /**
  * The two artifacts that sit next to the documentation on the same Pages deployment.
@@ -68,11 +68,11 @@ private const val API_URL = "$SITE_URL$SITE_BASE_URL" + "api/"
  */
 @JsExport
 fun docusaurusConfig(): Config = unsafeJso {
-    title = "ktjs-wrapper-template"
-    tagline = "A Kotlin/JS wrapper project you can copy"
+    title = "ktjs-oop-react"
+    tagline = "State and behaviour in a plain class, rendered as React islands"
     url = SITE_URL
     baseUrl = SITE_BASE_URL
-    favicon = "img/ktjs-wrapper-template-logo.png"
+    favicon = "img/ktjs-oop-react-logo.png"
     trailingSlash = true
     // A broken internal link fails the build instead of shipping a 404 to the Pages site.
     onBrokenLinks = ReportingSeverities.`throw`
@@ -154,11 +154,11 @@ fun docusaurusConfig(): Config = unsafeJso {
 
     themeConfig = unsafeJso<ThemeConfig> {
         navbar = unsafeJso {
-            title = "ktjs-wrapper-template"
+            title = "ktjs-oop-react"
             // The same file the favicon uses, so the navbar logo costs no extra download; `alt` is
             // left out because the title next to it already names the site.
             logo = unsafeJso<NavbarLogo> {
-                src = "img/ktjs-wrapper-template-logo.png"
+                src = "img/ktjs-oop-react-logo.png"
                 width = StringOrDouble(32.0)
                 height = StringOrDouble(32.0)
             }
@@ -266,7 +266,11 @@ fun sidebars(): SidebarsConfig = unsafeJso<Sidebars> {
         },
         unsafeJso {
             type = SidebarItemTypes.doc
-            id = "guide/deriving-a-project"
+            id = "guide/the-model"
+        },
+        unsafeJso {
+            type = SidebarItemTypes.doc
+            id = "guide/testing-and-troubleshooting"
         },
     )
 }.unsafeCast<SidebarsConfig>()

@@ -1,50 +1,55 @@
 ---
-title: ktjs-wrapper-template
-description: 一个立刻能跑的 Kotlin/JS wrapper 项目
+title: ktjs-oop-react
+description: oop-react 的模型在 Kotlin/JS 上的移植 —— 状态与行为待在一个普通类里，只有标了注解的方法重渲染
 hide_table_of_contents: true
 ---
 
-import logo from '@site/static/img/ktjs-wrapper-template-logo.png';
+import logo from '@site/static/img/ktjs-oop-react-logo.png';
 
 {/* `<ktjs-…>` 分区来自 ktjs-docusaurus 的工具箱：Gradle 插件把它的 bundle 放到 `static/ktjs-client/`，
     `ClientModule.kt` 在页面 hydrate 之后加载它。`href` 写成相对路径，两种 locale 前缀下都能用；
     `logo` 用 import 取，这样 URL 会带上本站实际的 `baseUrl`。 */}
 
-<ktjs-hero logo-src={logo} title="ktjs-wrapper-template" tagline="一个可以照抄的 Kotlin/JS wrapper 项目">
+<ktjs-hero logo-src={logo} title="ktjs-oop-react" tagline="状态与行为待在一个普通类里 —— 只有标了注解的方法重渲染">
 
 <ktjs-action kind="primary" href="intro">开始阅读</ktjs-action>
 
-<ktjs-action kind="secondary" href="https://github.com/shijianjs/ktjs-wrapper-template" icon="simple-icons:github">GitHub</ktjs-action>
+<ktjs-action kind="secondary" href="https://shijianjs.github.io/ktjs-oop-react/demo/">打开演示页</ktjs-action>
+
+<ktjs-action kind="secondary" href="https://github.com/shijianjs/ktjs-oop-react" icon="simple-icons:github">GitHub</ktjs-action>
 
 <ktjs-badge href="https://github.com/shijianjs/ktjs-oop-react/blob/master/LICENSE" src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></ktjs-badge>
 
 <ktjs-badge href="https://github.com/shijianjs/ktjs-oop-react" src="https://img.shields.io/badge/Kotlin%2FJS-2.4.21-7F52FF?logo=kotlin&logoColor=white" alt="Kotlin/JS"></ktjs-badge>
+
 </ktjs-hero>
 
-<ktjs-features section-title="为什么从这里开始" tinted>
+<ktjs-features section-title="它能给你什么" tinted>
 
-<ktjs-feature icon="lucide:play" title="拿来就能跑">克隆下来就是一个能构建、能测试、能部署的项目——第一次 `./gradlew build` 之前没有任何占位符要填。</ktjs-feature>
+<ktjs-feature icon="lucide:boxes" title="没有 hook，也没有依赖数组">字段就是状态，方法就是回调。`useState`、`useCallback`、`useEffect` 以及它们的依赖列表在这里没有对应物，因为没有东西需要声明：可观察字段本身就是状态。</ktjs-feature>
 
-<ktjs-feature icon="lucide:package" title="一个包一个模块">一个 wrapper 模块把一个 npm 包映射成一个 Kotlin 包。加第二个包就是复制一个目录，不用重新设计结构。</ktjs-feature>
+<ktjs-feature icon="lucide:layout-grid" title="重渲染有边界">一个类可以有几个 `@OopReactRender` 方法，每个都是独立的岛：只订阅自己读到的字段，各自被一个错误边界包住，并按「实例 + 原方法 + 参数 + 名字」记忆化 —— 父岛重渲染不会带着子岛一起跑。</ktjs-feature>
 
-<ktjs-feature icon="lucide:shield-check" title="类型而不是 dynamic">上游 `.d.ts` 写成 `external` 声明，编译期就能查；公开面用 `kotlin-browser` 的 `web.*` 类型，能和其他 wrapper 组合。</ktjs-feature>
+<ktjs-feature icon="lucide:share-2" title="逻辑不搬家">对象相互持有，孙子可以直接写祖父的字段：不要 context、不要回调 prop、不要用 ref 一层层往下传。</ktjs-feature>
 
-<ktjs-feature icon="lucide:flask-conical" title="在浏览器里测">模块的测试跑在 Chromium 里、打的是真实自定义元素，demo 还有自己的 Playwright 套件，两者都接进了 CI。</ktjs-feature>
+<ktjs-feature icon="lucide:flask-conical" title="状态类就是普通对象">`@OopReactState` 类是普通对象：可以在测试里 `new`，可以被别的类注入，可以完全脱离 React 使用。演示页的 Playwright 套件驱动的就是浏览器里那批类。</ktjs-feature>
 
-<ktjs-feature icon="lucide:book-open" title="文档也是 Kotlin">本站就是由 ktjs-docusaurus 构建的 Kotlin/JS 模块：类型化的配置与侧边栏、Markdown 页面、中英双语。</ktjs-feature>
+<ktjs-feature icon="lucide:cog" title="可观察性就是 MobX">字段上的 `makeObservable`、集合的 `OopReactList`、修改方法的 action —— 没有自研的响应式层，字段没重绘时不必怀疑一层抽象。</ktjs-feature>
 
-<ktjs-feature icon="lucide:rocket" title="Pages 与发布已接好">`pagesSite` 组装文档、demo 与 API 文档；`release.yml` 负责签名并经由 Maven Central hub 发布模块。</ktjs-feature>
+<ktjs-feature icon="lucide:triangle-alert" title="故障留在自己的岛里">每个岛自带错误边界：某个渲染方法抛了，就在它自己的位置显示一段信息，页面其余部分照常渲染。</ktjs-feature>
 
 </ktjs-features>
 
-<ktjs-next-steps section-title="接下来">
+<ktjs-next-steps section-title="接下来读什么">
 
-<ktjs-step href="intro" title="简介">仓库里有什么，为什么不用任何初始化就能用。</ktjs-step>
+<ktjs-step href="intro" title="简介">这个库是什么、TypeScript 的装饰器为什么带不过来、模型在 Kotlin/JS 上是怎么重搭的。</ktjs-step>
 
-<ktjs-step href="guide/getting-started" title="快速开始">环境要求、构建任务与两个开发服务器。</ktjs-step>
+<ktjs-step href="guide/getting-started" title="快速开始">两个注解、KSP 处理器、启动时唯一的一次调用，以及 `@JsName`。</ktjs-step>
 
-<ktjs-step href="guide/deriving-a-project" title="派生新项目">把它改成你自己的 wrapper 的改名清单。</ktjs-step>
+<ktjs-step href="guide/the-model" title="模型">状态、岛、列表、action、key 与错误边界 —— 外加最花时间的那些坑。</ktjs-step>
 
-<ktjs-step href="https://shijianjs.github.io/ktjs-wrapper-template/api/" title="API 文档">发布模块的 Dokka 产物。</ktjs-step>
+<ktjs-step href="guide/testing-and-troubleshooting" title="测试与排错">在浏览器测试里驱动注解类，以及那些不抛异常的错误。</ktjs-step>
+
+<ktjs-step href="https://shijianjs.github.io/ktjs-oop-react/api/" title="API 文档">发布模块的 Dokka 产物。</ktjs-step>
 
 </ktjs-next-steps>

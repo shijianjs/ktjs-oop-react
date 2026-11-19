@@ -1,4 +1,4 @@
-package io.github.shijianjs.ktjs.wrappertemplate.docs
+package io.github.shijianjs.ktjs.oopreact.docs
 
 import io.github.shijianjs.ktjs.docusaurus.kit.TocToggle
 import kotlin.js.JsExport
@@ -38,7 +38,7 @@ private val loadBrowserBundle: (String) -> Unit = js(
 /**
  * Called by Docusaurus after every route change.
  *
- * [siteBaseUrl] is the base URL Docusaurus resolved for this locale — `/ktjs-wrapper-template/` for
+ * [siteBaseUrl] is the base URL Docusaurus resolved for this locale — `/ktjs-oop-react/` for
  * English and `…/zh-Hans/` for Chinese, in the built site *and* in the dev server, which serves a
  * single locale under its own prefix. The bundle is served under that prefix, so the URL cannot be a
  * compile-time constant.

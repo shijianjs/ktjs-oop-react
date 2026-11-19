@@ -1,59 +1,129 @@
 ---
-sidebar_position: 1
+sidebar_position: 2
+title: Getting started
 ---
 
 # Getting started
 
-## Requirements
+A consumer module needs four things: the library, the KSP processor, the generated call, and `@JsName`
+on every annotated member.
 
-- JDK 21 or newer; the Gradle wrapper is checked in (9.4.1).
-- Node and npm are downloaded and driven by the Kotlin Gradle plugin — there is no `npm install` step
-  to remember, and `kotlin.js.yarn=false` keeps npm as the package manager.
-- Chromium is downloaded by Playwright the first time a browser test runs.
+## Dependencies
 
-## Build, test, publish
+```kotlin
+plugins {
+    kotlin("multiplatform")
+    id("com.google.devtools.ksp")
+}
 
-```bash
-./gradlew build                    # compile, Detekt, browser tests
-./gradlew :ktjs-wrapper-template-core:jsBrowserTest
-./gradlew :demo:e2eTest            # Playwright against the bundled demo page
-./gradlew :docs:docusaurusBuild    # the documentation site
-./gradlew pagesSite                # documentation at /, demo at /demo/, Dokka at /api/
+kotlin {
+    js {
+        useEsModules()
+        browser()
+    }
+}
+
+dependencies {
+    implementation("io.github.shijianjs:ktjs-oop-react:<version>")
+    add("kspJs", "io.github.shijianjs:ktjs-oop-react-ksp:<version>")
+}
 ```
 
-`build` does not run the demo's end-to-end suite or assemble the Pages site: both need a browser and
-are part of CI as separate steps.
+`kspJs`, not `ksp`: the processor reads the JS compilation's sources and writes the generated file into
+the same compilation. The library is a Kotlin/JS re-implementation, not a wrapper of an npm package, so
+no npm dependency is involved.
 
-## Develop
+## The four annotations
 
-```bash
-./gradlew :docs:docusaurusStart          # dev server for this site
-./gradlew :demo:jsBrowserDevelopmentRun  # dev server for the demo page
+| Annotation | Goes on | Meaning |
+| --- | --- | --- |
+| `@OopReactState` | a class | the instance is observable; its fields are tracked |
+| `@OopReactRender` | a member function returning `ReactNode` | the method becomes a React island |
+| `@OopReactAction` | a member function | the call is a MobX action (state changes inside it are batched) |
+| `@OopReactIgnore` | a member | exclude it explicitly, so the processor does not report it |
+
+The processor generates exactly one function per module:
+
+```kotlin
+package io.github.shijianjs.ktjs.oopreact.generated
+
+fun initializeOopReact() { /* oopReactMeta(...) per annotated class */ }
 ```
 
-Docusaurus watches the site directory, so Markdown edits reload; Kotlin changes need
-`./gradlew :docs:docusaurusSite` first, because the site imports the compiled module.
+Call it **once**, before the first render:
 
-## Where things live
-
-| Path | Contents |
-| --- | --- |
-| `package.json` | the only place npm versions are declared (Dependabot maintains it) |
-| `wrapper-revisions.properties` | per-module `-kt.N` revision |
-| `ktjs-wrapper-template-core/src/jsMain/kotlin` | the wrapper declarations |
-| `ktjs-wrapper-template-core/src/jsTest/kotlin` | browser tests for them |
-| `demo/src/jsMain` | the demo page and its Kotlin entry point |
-| `docs/src/jsMain/kotlin` | the site configuration and sidebar |
-| `docs/src/jsMain/resources` | Markdown pages, MDX landing page, CSS, translations |
-
-## The lock file
-
-npm dependencies are resolved once for the whole workspace and pinned in
-`kotlin-js-store/package-lock.json`. After adding or upgrading an npm dependency — or changing a
-module's version — regenerate it:
-
-```bash
-./gradlew kotlinUpgradePackageLock
+```kotlin
+fun main() {
+    initializeOopReact()
+    createRoot(document.getElementById("root")!!).render(App().root())
+}
 ```
 
-CI verifies the committed file, so a forgotten regeneration fails the build rather than drifting.
+```mermaid
+sequenceDiagram
+    participant Main as main()
+    participant Init as initializeOopReact()
+    participant KSP as generated metadata
+    participant React as React
+
+    Main->>Init: call once
+    Init->>KSP: read the class/method table
+    Init->>Init: attach metadata to constructors
+    Init->>Init: patch each @OopReactRender method on the prototype
+    Main->>React: createRoot(...).render(app.root())
+    React->>React: the patched methods return islands
+```
+
+Without that call the annotated classes are ordinary classes: no subscription, no islands, no error
+boundary — and nothing throws to tell you so.
+
+## `@JsName` is mandatory
+
+Kotlin/JS compiles a member `view()` into `view_<hash>_k$`, and the hash cannot be derived from the
+source. The runtime reaches members by JavaScript name, so every annotated member declares one:
+
+```kotlin
+@OopReactRender
+@JsName("view")
+fun view(): ReactNode = ...
+```
+
+The processor fails the build when it is missing, and tells you which name to add. This is the single
+most common first error.
+
+## The DSL
+
+`jsx { }` is the body of a render method: it is a React fragment, so it adds no wrapper element, and
+inside it the kotlin-wrappers HTML DSL is available.
+
+```kotlin
+@OopReactRender
+@JsName("card")
+fun card(): ReactNode {
+    val title = this.title      // read the field into a local first — see below
+    return jsx {
+        div {
+            h2 { +title }
+            p { +"read $count times" }
+        }
+    }
+}
+```
+
+The local copy is not style: inside the DSL a bare name resolves against the **element's** properties
+first, so `value`, `hidden`, `title` and the like would silently mean the DOM attribute instead of your
+field. Take the value into a local, or write `this@Class.field`.
+
+## Repository layout of a consumer
+
+```
+src/jsMain/kotlin/<app>/
+├── App.kt          // @OopReactState, the root of the graph, one @OopReactRender per island
+├── pages/          // one class per page, each assembling its own islands
+└── ...
+src/jsMain/resources/index.html   // one <div id="root">
+```
+
+The demo in this repository is exactly that shape; read it next to this page.
+
+Next: [The model](the-model.md).

@@ -5,37 +5,83 @@ title: Introduction
 
 # Introduction
 
-`ktjs-wrapper-template` is a starting point for Kotlin/JS wrappers around npm packages, mostly Web
-Components. It is deliberately **not** a scaffold full of placeholders: the repository is a complete
-project that builds, tests in a real browser, documents itself and deploys to GitHub Pages, so copying
-it gives you something that runs on the first `./gradlew build`.
+`ktjs-oop-react` brings the model of [oop-react](https://github.com/shijianjs/oop-react) to Kotlin/JS:
 
-## What is in it
+> **State and behaviour live in an ordinary class. Only the methods you annotate become React components.**
 
-| Part | Role |
+React itself is the official [kotlin-wrappers](https://github.com/JetBrains/kotlin-wrappers) binding, and
+observability is MobX — not a layer written for this library.
+
+```kotlin
+@OopReactState
+class Cart {
+    val items: MutableList<Item> = OopReactList()
+
+    fun add(item: Item) {
+        items.add(item)
+    }
+
+    @OopReactRender
+    @JsName("view")
+    fun view(): ReactNode = jsx {
+        ul {
+            for (item in items) {
+                li { +item.title }
+            }
+        }
+    }
+}
+```
+
+## The shape of the problem
+
+A React component is a function of props and state, and the seams between them are what this model
+removes. In TypeScript, oop-react could lean on decorators: one marked the class, one marked the
+methods, and both ran **when the class was defined**.
+
+Kotlin/JS has neither of those hooks:
+
+| TypeScript had | Kotlin/JS has |
 | --- | --- |
-| `ktjs-wrapper-template-core` | the sample wrapper: `@vaadin/button` 25.3.5. One npm package, one Gradle module, one Kotlin package — copy it for the next package |
-| `demo` | a page that creates two `<vaadin-button>` elements through the wrapper; published under `/demo/` |
-| `docs` | this site: Kotlin configuration, Markdown pages, built by the [ktjs-docusaurus](https://github.com/shijianjs/ktjs-docusaurus) Gradle plugin |
-| the rest | npm versions in one `package.json`, per-module `-kt.N` revisions, Detekt, Playwright browser tests, Maven Central release through the hub, Pages workflow |
+| decorators, executed at class definition | annotations, with no runtime reflection |
+| `prototype` / constructor wrapping | a class whose members are renamed (`name_<hash>_k$`) |
+| `this` bound by the decorator | an explicit `@JsName` so the runtime can find the member |
 
-The API reference under `/api/` is Dokka output for the published modules — the same Dokka run that
-`pagesSite` assembles next to this site.
-
-## Where to go next
-
-- [Getting started](guide/getting-started.md) — build it, test it, run the dev server.
-- [Deriving a project](guide/deriving-a-project.md) — the rename checklist for turning this into your
-  own wrapper.
-
-## How the pieces fit together
+So the model is rebuilt in two halves, and this repository is those two halves plus their proof:
 
 ```mermaid
-flowchart TB
-  T["ktjs-wrapper-template<br/>(copy me)"] --> C["core: the sample wrapper"]
-  T --> D["demo: a runnable page"]
-  T --> G["docs: this site"]
-  C --> V["@vaadin/button"]
-  G --> B["ktjs-docusaurus<br/>Gradle plugin"]
-  B --> P["GitHub Pages"]
+flowchart LR
+    subgraph build["build time"]
+        A["@OopReactState<br/>@OopReactRender<br/>@OopReactAction<br/>@OopReactIgnore"] --> B["KSP processor"]
+        B --> C["generated initializeOopReact()<br/>a table of oopReactMeta(...)"]
+    end
+    subgraph runtime["application start"]
+        C --> D["initializeOopReact()"]
+        D --> E["metadata attached to the constructors<br/>each render method patched on the prototype"]
+        E --> F["createRoot(container).render(app.view())"]
+    end
 ```
+
+The one statement you have to write is `initializeOopReact()` at startup. Everything else is the code
+you would have written anyway: classes, fields, methods.
+
+## What is in the repository
+
+| Module | What it is |
+| --- | --- |
+| `ktjs-oop-react` | The published library: annotations, runtime (prototype patching, render islands, error boundaries, configuration, async helpers, selections, lifecycle) and the MobX binding. |
+| `ktjs-oop-react-ksp` | The KSP processor consumers apply to their own module. Build-time only — it publishes no Dokka. |
+| `demo` | The reference consumer: applies KSP, uses MUI, renders a whole page from one object graph. Published under `/demo/`. |
+| `docs` | This site. |
+
+## What it does not do
+
+- It is not a smaller API in place of hooks. There is no `use*` function in the library; the observable
+  field **is** the state, so there is nothing for a hook to subscribe to.
+- It does not add a rendering model of its own. React renders what the annotated methods return; the
+  library only decides *when* those methods run.
+- It does not hide MobX. A field that does not repaint is a field MobX does not consider observable —
+  that is the first thing to check, and it is inspectable.
+
+Next: [Getting started](guide/getting-started.md) wires the processor in, and [The model](guide/the-model.md)
+explains what an island actually is.
