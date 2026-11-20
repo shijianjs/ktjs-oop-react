@@ -52,7 +52,7 @@ kotlin {
             api("org.jetbrains.kotlin-wrappers:kotlin-react-dom:2026.11.1-19.3.1")
 
             // The public surface uses kotlin-browser types (`web.*`) wherever DOM types appear.
-            api("org.jetbrains.kotlin-wrappers:kotlin-browser:2026.11.1")
+            api("org.jetbrains.kotlin-wrappers:kotlin-browser:2026.11.2")
 
             // Reactivity is MobX itself — no abstraction layer on top. The React binding is
             // `mobx-react-lite`'s `observer`, the same component the TypeScript original uses.
