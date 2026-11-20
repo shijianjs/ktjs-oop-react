@@ -147,11 +147,3 @@ class TodosPage(
     @JsName("rowKey")
     fun rowKey(item: Todo): String = item.id.toString()
 }
-
-/** One entry of the list. Observable, so `done` drives its own row only. */
-@OopReactState
-class Todo(
-    val id: Int,
-    val title: String,
-    var done: Boolean = false,
-)

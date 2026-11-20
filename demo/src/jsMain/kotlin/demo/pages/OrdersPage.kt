@@ -347,30 +347,16 @@ class OrdersPage(
         delay(600)
         return DEMO_ORDERS
     }
+
+    // The page's own statics: the scope its async views launch in, and the fixture the service returns.
+    private companion object {
+        private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)
+
+        private val DEMO_ORDERS: List<Order> =
+            listOf(
+                Order(1, "Acme 纸业", 1280.0, OrderStatus.Paid),
+                Order(2, "北辰物流", 540.5, OrderStatus.New),
+                Order(3, "青山书店", 96.0, OrderStatus.Shipped),
+            )
+    }
 }
-
-/** A row of the table. Observable: editing its fields re-renders the cell that reads them. */
-@OopReactState
-class Order(
-    val id: Int,
-    var customer: String,
-    var amount: Double,
-    var status: OrderStatus,
-)
-
-enum class OrderStatus(
-    val label: Msg,
-) {
-    New(Msg.statusNew),
-    Paid(Msg.statusPaid),
-    Shipped(Msg.statusShipped),
-}
-
-private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)
-
-private val DEMO_ORDERS: List<Order> =
-    listOf(
-        Order(1, "Acme 纸业", 1280.0, OrderStatus.Paid),
-        Order(2, "北辰物流", 540.5, OrderStatus.New),
-        Order(3, "青山书店", 96.0, OrderStatus.Shipped),
-    )
