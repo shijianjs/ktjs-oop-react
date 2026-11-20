@@ -18,8 +18,6 @@ import react.Key
 import react.ReactNode
 import web.cssom.ClassName
 
-private const val BOARD_SIZE = 9
-
 /**
  * The official React tutorial, plus its assignments: move history, computed winner, two nested loops.
  *
@@ -160,27 +158,30 @@ class TicTacToePage(
             +(value ?: "")
         }
     }
-}
 
-private fun emptyBoard(): Array<String?> = arrayOfNulls(BOARD_SIZE)
+    // This file's helpers, kept with the class that owns them.
+    private companion object {
+        private const val BOARD_SIZE = 9
+        private fun emptyBoard(): Array<String?> = arrayOfNulls(BOARD_SIZE)
+        /** 8 lines, checked in order; returns the winner's mark or `null`. */
+        private fun calculateWinner(squares: Array<String?>): String? {
+            val lines =
+                arrayOf(
+                    intArrayOf(0, 1, 2),
+                    intArrayOf(3, 4, 5),
+                    intArrayOf(6, 7, 8),
+                    intArrayOf(0, 3, 6),
+                    intArrayOf(1, 4, 7),
+                    intArrayOf(2, 5, 8),
+                    intArrayOf(0, 4, 8),
+                    intArrayOf(2, 4, 6),
+                )
 
-/** 8 lines, checked in order; returns the winner's mark or `null`. */
-private fun calculateWinner(squares: Array<String?>): String? {
-    val lines =
-        arrayOf(
-            intArrayOf(0, 1, 2),
-            intArrayOf(3, 4, 5),
-            intArrayOf(6, 7, 8),
-            intArrayOf(0, 3, 6),
-            intArrayOf(1, 4, 7),
-            intArrayOf(2, 5, 8),
-            intArrayOf(0, 4, 8),
-            intArrayOf(2, 4, 6),
-        )
-
-    for (line in lines) {
-        val first = squares[line[0]]
-        if (first != null && first == squares[line[1]] && first == squares[line[2]]) return first
+            for (line in lines) {
+                val first = squares[line[0]]
+                if (first != null && first == squares[line[1]] && first == squares[line[2]]) return first
+            }
+            return null
+        }
     }
-    return null
 }
