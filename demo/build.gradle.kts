@@ -48,7 +48,7 @@ kotlin {
 
             // The UI kit the demo is written against: the official wrapper for MUI. Emotion is its
             // styling engine — MUI declares it as a peer, so the npm versions come from package.json.
-            implementation("org.jetbrains.kotlin-wrappers:kotlin-mui-material:2026.11.1-9.5.0")
+            implementation("org.jetbrains.kotlin-wrappers:kotlin-mui-material:2026.11.2-9.5.0")
             implementation(npm("@emotion/react", npmVersions.getValue("@emotion/react")))
             implementation(npm("@emotion/styled", npmVersions.getValue("@emotion/styled")))
         }
