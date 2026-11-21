@@ -48,8 +48,8 @@ kotlin {
         jsMain.dependencies {
             // The React binding is the official one. `kotlin-react` already declares npm `react`, and
             // `kotlin-react-dom` declares `react-dom`, so the versions travel with the klibs.
-            api("org.jetbrains.kotlin-wrappers:kotlin-react:2026.11.1-19.3.1")
-            api("org.jetbrains.kotlin-wrappers:kotlin-react-dom:2026.11.1-19.3.1")
+            api("org.jetbrains.kotlin-wrappers:kotlin-react:2026.11.2-19.3.1")
+            api("org.jetbrains.kotlin-wrappers:kotlin-react-dom:2026.11.2-19.3.1")
 
             // The public surface uses kotlin-browser types (`web.*`) wherever DOM types appear.
             api("org.jetbrains.kotlin-wrappers:kotlin-browser:2026.11.2")
@@ -63,8 +63,8 @@ kotlin {
             implementation(kotlin("test"))
             // Testing Library drives the tests through the DOM the way a user would; it is the
             // Kotlin/JS port of the tool the TypeScript original tests with.
-            implementation("org.jetbrains.kotlin-wrappers:kotlin-testing-library-react:2026.11.1-16.3.2")
-            implementation("org.jetbrains.kotlin-wrappers:kotlin-testing-library-dom:2026.11.1-10.4.1")
+            implementation("org.jetbrains.kotlin-wrappers:kotlin-testing-library-react:2026.11.2-16.3.2")
+            implementation("org.jetbrains.kotlin-wrappers:kotlin-testing-library-dom:2026.11.2-10.4.1")
         }
     }
 }
