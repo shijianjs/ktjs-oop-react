@@ -28,10 +28,6 @@ import web.cssom.ClassName
 class CounterPage(
     private val settings: Settings,
 ) : Page {
-    override val path: String = "counter"
-
-    override val title: Msg = Msg.navCounter
-
     private val left: Counter = Counter("left")
 
     private val middle: Counter = Counter("middle")

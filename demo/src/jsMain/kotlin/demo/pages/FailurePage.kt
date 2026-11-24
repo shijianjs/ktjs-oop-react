@@ -27,10 +27,6 @@ import web.cssom.ClassName
 class FailurePage(
     private val settings: Settings,
 ) : Page {
-    override val path: String = "failure"
-
-    override val title: Msg = Msg.navFailure
-
     var shouldThrow: Boolean = true
 
     override fun content(): ReactNode = jsx {

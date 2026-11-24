@@ -33,10 +33,6 @@ import web.cssom.ClassName
 class TodosPage(
     private val settings: Settings,
 ) : Page {
-    override val path: String = "todos"
-
-    override val title: Msg = Msg.navTodos
-
     val items: MutableList<Todo> = OopReactList()
 
     var draft: String = ""

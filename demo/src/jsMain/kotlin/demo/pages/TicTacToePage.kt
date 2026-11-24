@@ -29,10 +29,6 @@ import web.cssom.ClassName
 class TicTacToePage(
     private val settings: Settings,
 ) : Page {
-    override val path: String = "tictactoe"
-
-    override val title: Msg = Msg.navTictactoe
-
     var history: List<Array<String?>> = listOf(emptyBoard())
 
     var step: Int = 0

@@ -88,6 +88,26 @@ class DemoPageTest {
     }
 
     @RetryingTest(maxAttempts = 2)
+    fun `leaving a route releases its page`(page: Page) {
+        openPage(page, "#/counter")
+
+        assertThat(page.getByText("left: 0")).isVisible()
+        page.getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName("+").setExact(true))
+            .first()
+            .click()
+        assertThat(page.getByText("left: 1")).isVisible()
+
+        page.getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName("待办").setExact(true)).click()
+        assertThat(page.getByText("0 条未完成")).isVisible()
+
+        page.getByRole(AriaRole.BUTTON, Page.GetByRoleOptions().setName("计数器").setExact(true)).click()
+
+        // The route table holds metadata, not instances: coming back builds a new CounterPage, so
+        // the count of the page that was left is gone.
+        assertThat(page.getByText("left: 0")).isVisible()
+    }
+
+    @RetryingTest(maxAttempts = 2)
     fun `switching the language re-renders the header and the nav`(page: Page) {
         openPage(page, "#/counter")
 

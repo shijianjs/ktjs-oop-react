@@ -25,6 +25,8 @@ MobX 本身，不做抽象层。**它不是 npm 包的 wrapper**，所以版本�
 - `ktjs-oop-react-ksp`：KSP 处理器，把注解变成运行时用的元数据表。消费者在自己的模块里应用 KSP。**不发布
   Dokka**，它是构建期工具。
 - `demo`：演示页，发布在 Pages 的 `/demo/`。**它是参考消费者**：应用 KSP、用 MUI、用一张对象图渲染整页。
+  路由表（`routing/Route`）只存 `path`、菜单文案和 `create` 回调，页面实例在进入路由时才建、切走就释放
+  （别把实例塞回路由表）。
 - `docs`：文档站，`settings.gradle.kts` 里已 include。站点就是四页：`intro`、`guide/getting-started`、
   `guide/the-model`、`guide/testing-and-troubleshooting`，每页都有 `i18n/zh-Hans/` 下的中文版。首页用
   `ktjs-docusaurus-kit` 的 `ktjs-hero` / `ktjs-features` / `ktjs-next-steps` 五件套，右侧 TOC 折叠按钮由

@@ -4,9 +4,9 @@ import demo.i18n.Msg
 import demo.pages.CounterPage
 import demo.pages.FailurePage
 import demo.pages.OrdersPage
-import demo.pages.Page
 import demo.pages.TicTacToePage
 import demo.pages.TodosPage
+import demo.routing.Route
 import demo.routing.Router
 import io.github.shijianjs.ktjs.oopreact.reactivity.OopReactState
 import io.github.shijianjs.ktjs.oopreact.render.OopReactRender
@@ -31,7 +31,11 @@ import react.ReactNode
 import web.cssom.ClassName
 
 /**
- * The root of the graph: settings, the router, one shared feedback channel, and every page.
+ * The root of the graph: settings, the router, one shared feedback channel, and the route table.
+ *
+ * The table is metadata plus a factory per entry; the router builds a page only when its route is
+ * entered. That is what keeps a long menu from instantiating every page — and every page's state —
+ * up front.
  *
  * It also owns the whole page — the theme provider, the layout, and each part of the layout as its
  * own island — so that switching a page does not re-render the header and a snackbar does not
@@ -47,15 +51,15 @@ class App {
 
     val feedback: Feedback = Feedback()
 
-    val pages: List<Page> = listOf(
-        CounterPage(settings),
-        TodosPage(settings),
-        TicTacToePage(settings),
-        OrdersPage(feedback, settings),
-        FailurePage(settings),
+    val routes: List<Route> = listOf(
+        Route("counter", Msg.navCounter) { CounterPage(settings) },
+        Route("todos", Msg.navTodos) { TodosPage(settings) },
+        Route("tictactoe", Msg.navTictactoe) { TicTacToePage(settings) },
+        Route("orders", Msg.navOrders) { OrdersPage(feedback, settings) },
+        Route("failure", Msg.navFailure) { FailurePage(settings) },
     )
 
-    val router: Router = Router(pages)
+    val router: Router = Router(routes)
 
     /** Theme and locale wrap the tree, which is exactly what a render method does. */
     @OopReactRender
@@ -125,24 +129,25 @@ class App {
     fun nav(): ReactNode {
         val router = this.router
         val settings = this.settings
-        val pages = this.pages
+        val routes = this.routes
         val active = router.path
         return jsx {
             Stack {
                 direction = responsive(StackDirection.row)
                 className = ClassName("app-nav")
-                for (page in pages) {
+                for (route in routes) {
                     Button {
-                        key = Key(page.path)
-                        variant = if (page.path == active) ButtonVariant.contained else ButtonVariant.text
-                        onClick = { router.go(page) }
-                        +settings.t(page.title)
+                        key = Key(route.path)
+                        variant = if (route.path == active) ButtonVariant.contained else ButtonVariant.text
+                        onClick = { router.goPath(route.path) }
+                        +settings.t(route.title)
                     }
                 }
             }
         }
     }
 
+    /** Reads only `router.current`, so a page switch re-renders this island alone. */
     @OopReactRender
     @JsName("content")
     fun content(): ReactNode {

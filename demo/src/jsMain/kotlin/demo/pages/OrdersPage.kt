@@ -56,10 +56,6 @@ class OrdersPage(
     private val feedback: Feedback,
     private val settings: Settings,
 ) : Page {
-    override val path: String = "orders"
-
-    override val title: Msg = Msg.navOrders
-
     val rows: OopReactResource<List<Order>> = OopReactResource()
 
     val selection: OopReactSelection<Int> = OopReactSelection()
