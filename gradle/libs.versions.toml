@@ -65,6 +65,10 @@ junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "jun
 junit-pioneer = { module = "org.junit-pioneer:junit-pioneer", version.ref = "junit-pioneer" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit" }
 
+# The annotation processor the `-ksp` module compiles against. It ships from the KSP release,
+# so it shares the `ksp` version with the plugin.
+symbol-processing-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
+
 ktjs-docusaurus = { module = "io.github.shijianjs:ktjs-docusaurus", version.ref = "ktjs-docusaurus" }
 ktjs-docusaurus-kit = { module = "io.github.shijianjs:ktjs-docusaurus-kit", version.ref = "ktjs-docusaurus-kit" }
 # The kit's browser half is a klib resource, not a type anyone compiles against:

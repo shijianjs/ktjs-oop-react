@@ -17,7 +17,7 @@ kotlin {
 }
 
 dependencies {
-    implementation("com.google.devtools.ksp:symbol-processing-api:2.3.14")
+    implementation(libs.symbol.processing.api)
 
     testImplementation(kotlin("test"))
 }
