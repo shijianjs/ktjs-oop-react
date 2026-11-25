@@ -57,18 +57,14 @@ class OopReactList<T : Any>(
 
     override fun get(index: Int): T {
         checkIndex(index)
-        // `js(...)` only substitutes locals — a property named inside the snippet compiles to a bare
-        // identifier, which is a `ReferenceError` at runtime.
-        val array = items
-        return castFrom(js("array[index]"))
+        return castFrom(items[index])
     }
 
     override fun set(index: Int, element: T): T {
         checkIndex(index)
         observe(element)
-        val array = items
-        val previous: T = castFrom(js("array[index]"))
-        js("array[index] = element")
+        val previous: T = castFrom(items[index])
+        items[index] = element.asJsAny()
         return previous
     }
 
@@ -84,8 +80,7 @@ class OopReactList<T : Any>(
 
     override fun removeAt(index: Int): T {
         checkIndex(index)
-        val array = items
-        return castFrom(js("array.splice(index, 1)[0]"))
+        return castFrom(items.splice(index, 1)[0])
     }
 
     override fun clear() {

@@ -1,5 +1,6 @@
 package io.github.shijianjs.ktjs.oopreact.internal
 
+import js.collections.WeakMap
 import kotlin.js.JsAny
 
 /**
@@ -10,13 +11,7 @@ import kotlin.js.JsAny
  * fiber would then run a different render method, and a different hook count mid-fiber is something
  * React rejects. The id is what makes "this island" and "that island" distinguishable.
  */
-private external interface WeakMapLike {
-    fun get(key: JsAny): Int?
-
-    fun set(key: JsAny, value: Int)
-}
-
-private val instanceIds: WeakMapLike = js("new WeakMap()")
+private val instanceIds: WeakMap<JsAny, Int> = WeakMap()
 
 private var nextInstanceId: Int = 0
 

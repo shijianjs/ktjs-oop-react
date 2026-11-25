@@ -51,6 +51,10 @@ internal external class Reaction(
 internal external interface ObservableArray {
     var length: Int
 
+    operator fun get(index: Int): JsAny?
+
+    operator fun set(index: Int, value: JsAny?)
+
     fun push(vararg items: JsAny?): Int
 
     /** The only way to remove an element: `delete items[i]` leaves a hole MobX cannot track. */
