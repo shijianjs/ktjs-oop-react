@@ -1,15 +1,18 @@
 package io.github.shijianjs.ktjs.oopreact.internal
 
 import js.array.ReadonlyArray
+import js.objects.Object
+import js.objects.PropertyKey
+import js.reflect.Reflect
 import kotlin.js.JsAny
 
 /**
- * The handful of JavaScript operations this library would otherwise spell as one-off `js(...)`
- * snippets.
+ * The JavaScript operations this library needs on values it only knows as `JsAny`.
  *
- * They are collected here, not spread over the call sites, because each of them is a place where
- * Kotlin's own semantics differ from JavaScript's and the difference has to be visible in one
- * comment instead of ten.
+ * The operations the official Kotlin/JS typing already covers go through it — `js.reflect.Reflect`,
+ * `js.objects.Object`, `jsTypeOf` — rather than being spelled out as JS snippets. What is still a
+ * `js(...)` snippet is only what has no typed counterpart at all: the enclosing function's `this`,
+ * a call with an explicit receiver, and building a real (non-lambda) wrapper function.
  */
 
 /** The JS `this` of the enclosing function. Only valid inside a real function, never a lambda. */
@@ -34,64 +37,59 @@ internal fun <T> castFrom(value: Any?): T =
  * the value may be a JS primitive (a string, a number) that is perfectly valid on the JS side.
  */
 internal fun Any?.asJsAny(): JsAny =
-    jsAnyOf(this)
+    unsafeCast<JsAny>()
 
 /** The other direction: a JS value used where Kotlin expects `Any`. */
 internal fun <T> JsAny?.asAny(): T =
     castFrom(this)
 
-private fun jsAnyOf(value: Any?): JsAny =
-    js("value")
-
 internal fun prototypeOf(constructor: JsAny): JsAny? =
-    js("constructor.prototype")
+    Reflect.get(constructor, "prototype")
 
 internal fun constructorOf(instance: JsAny?): JsAny? =
-    js("instance !== null && instance !== undefined ? instance.constructor : undefined")
+    instance?.let { Reflect.get(it, "constructor") }
 
 internal fun ownEnumerableKeys(target: JsAny): ReadonlyArray<String> =
-    js("Object.keys(target)")
+    // `Object.keys` is typed with `JsString` elements; those values are plain JS strings.
+    Object.keys(target).unsafeCast<ReadonlyArray<String>>()
 
 internal fun ownPropertyNames(target: JsAny): ReadonlyArray<String> =
-    js("Object.getOwnPropertyNames(target)")
+    Object.getOwnPropertyNames(target).unsafeCast<ReadonlyArray<String>>()
 
 internal fun parentPrototypeOf(prototype: JsAny?): JsAny? =
-    js("prototype === null || prototype === undefined ? undefined : Object.getPrototypeOf(prototype)")
+    prototype?.let { Reflect.getPrototypeOf(it) }
 
 internal fun isFunction(value: JsAny?): Boolean =
-    js("typeof value === 'function'")
+    jsTypeOf(value) == "function"
 
 internal fun isObject(value: JsAny?): Boolean =
-    js("value !== null && typeof value === 'object'")
+    value != null && jsTypeOf(value) == "object"
 
 /**
  * Whether `prototype.name` is a method or an accessor, i.e. something MobX can annotate as an action
  * or a computed value. A plain data property on the prototype is not one.
  */
-internal fun isMethodProperty(prototype: JsAny, name: String): Boolean =
-    js(
-        """(function (descriptor) {
-            return descriptor !== undefined
-                && (typeof descriptor.value === 'function' || typeof descriptor.get === 'function');
-        })(Object.getOwnPropertyDescriptor(prototype, name))""",
-    )
+internal fun isMethodProperty(prototype: JsAny, name: String): Boolean {
+    val descriptor = Object.getOwnPropertyDescriptor<JsAny?>(prototype, name) ?: return false
+    return jsTypeOf(descriptor.value) == "function" || jsTypeOf(descriptor.get) == "function"
+}
 
 internal fun readProperty(target: JsAny?, name: String): JsAny? =
-    js("target === null || target === undefined ? undefined : target[name]")
+    target?.let { Reflect.get(it, name) }
 
 internal fun writeProperty(target: JsAny, name: String, value: JsAny?) {
-    js("target[name] = value")
+    Reflect.set(target, name, value)
 }
 
 internal fun deleteProperty(target: JsAny, name: String): Boolean =
-    js("delete target[name]")
+    Reflect.deleteProperty(target, name)
 
 /** Reads a property keyed by a symbol, i.e. one that never shows up in enumeration. */
 internal fun readSymbolProperty(target: JsAny?, key: JsAny?): JsAny? =
-    js("target === null || target === undefined ? undefined : target[key]")
+    if (target == null || key == null) null else Reflect.get(target, key.unsafeCast<PropertyKey>())
 
 internal fun writeSymbolProperty(target: JsAny, key: JsAny, value: JsAny?) {
-    js("target[key] = value")
+    Reflect.set(target, key.unsafeCast<PropertyKey>(), value)
 }
 
 /**
@@ -99,7 +97,8 @@ internal fun writeSymbolProperty(target: JsAny, key: JsAny, value: JsAny?) {
  *
  * `fn.call(receiver, ...args)` is not expressible in Kotlin: a Kotlin function type is invoked as
  * `fn(args)`, which uses `undefined` as the receiver. Every patched member is a function that reads
- * `this`, so the call has to go through `Function.prototype.apply`.
+ * `this`, so the call has to go through `Function.prototype.apply` — kotlin-js types `Reflect` but
+ * has no `Reflect.apply`, so this one stays a snippet.
  */
 internal fun applyFunction(fn: JsAny, receiver: JsAny, args: ReadonlyArray<JsAny?>): JsAny? =
     js("fn.apply(receiver, args)")
