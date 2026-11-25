@@ -48,18 +48,18 @@ kotlin {
 
             // The UI kit the demo is written against: the official wrapper for MUI. Emotion is its
             // styling engine — MUI declares it as a peer, so the npm versions come from package.json.
-            implementation("org.jetbrains.kotlin-wrappers:kotlin-mui-material:2026.11.2-9.5.0")
+            implementation(libs.kotlin.mui.material)
             implementation(npm("@emotion/react", npmVersions.getValue("@emotion/react")))
             implementation(npm("@emotion/styled", npmVersions.getValue("@emotion/styled")))
         }
 
         jvmTest.dependencies {
-            implementation("com.microsoft.playwright:playwright:1.61.0")
-            implementation("cn.hutool:hutool-all:5.8.48")
-            implementation("org.junit.jupiter:junit-jupiter:6.1.3")
-            implementation("org.junit-pioneer:junit-pioneer:2.3.0")
+            implementation(libs.playwright)
+            implementation(libs.hutool.all)
+            implementation(libs.junit.jupiter)
+            implementation(libs.junit.pioneer)
             implementation(kotlin("test-junit5"))
-            runtimeOnly("org.junit.platform:junit-platform-launcher:6.1.3")
+            runtimeOnly(libs.junit.platform.launcher)
         }
     }
 }
