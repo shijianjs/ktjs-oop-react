@@ -37,7 +37,7 @@ hutool = "5.8.48"
 # kit and its consumers are changed together. `ktjs-docusaurus` is the docs wrapper,
 # `ktjs-docusaurus-kit` the toolbox whose home sections the landing page uses.
 ktjs-docusaurus = "3.10.2-kt.2-SNAPSHOT"
-ktjs-docusaurus-kit = "0.1.0-SNAPSHOT"
+ktjs-docusaurus-kit = "0.1.0"
 
 # ktjs-docusaurus's Gradle plugin: its own `-kt.N` revision.
 ktjs-docusaurus-gradle-plugin = "3.10.2-kt.1-SNAPSHOT"
