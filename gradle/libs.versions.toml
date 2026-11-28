@@ -16,14 +16,14 @@ detekt = "2.0.0-alpha.6"
 maven-publish = "0.37.0"
 
 # JetBrains Kotlin/JS type wrappers.
-kotlin-wrappers = "2026.11.2"
+kotlin-wrappers = "2026.11.4"
 
 # The React/MUI wrappers carry the upstream npm version after the wrappers version:
 # {kotlin-wrappers}-{react} and {kotlin-wrappers}-{mui}.
-react = "2026.11.2-19.3.1"
-mui = "2026.11.2-9.5.0"
-testing-library-react = "2026.11.2-16.3.2"
-testing-library-dom = "2026.11.2-10.4.1"
+react = "2026.11.4-19.3.1"
+mui = "2026.11.4-9.5.0"
+testing-library-react = "2026.11.4-16.3.2"
+testing-library-dom = "2026.11.4-10.4.1"
 
 # Test stack: the browser suite plus the Playwright end-to-end demo suite (JUnit 5
 # with Hutool's static server); `junit-pioneer` carries the in-memory filesystem the
